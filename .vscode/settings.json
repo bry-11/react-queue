@@ -1,0 +1,19 @@
+{
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": true
+    },
+    "[yaml]": {
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "eslint.run": "onSave",
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "scssFormatter.singleQuote": true,
+    "emmet.triggerExpansionOnTab": true,
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "eslint.alwaysShowStatus": true,
+    "files.autoSave": "onFocusChange"
+}

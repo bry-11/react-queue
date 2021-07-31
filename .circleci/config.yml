@@ -1,0 +1,143 @@
+version: 2
+jobs:
+    test:
+        working_directory: ~/project
+        docker:
+            - image: publipromueve/circleci-node:latest
+        steps:
+            - run:
+                  name: Test
+                  command: echo "Testing"
+    build-staging:
+        working_directory: ~/project
+        docker:
+            - image: publipromueve/circleci-node:latest
+        steps:
+            - checkout
+            - run:
+                  name: Update npm
+                  command: 'sudo npm install -g npm@latest'
+            - restore_cache:
+                  keys:
+                      - v1-dependencies-{{ checksum "package.json" }}
+                      - v1-dependencies-
+            - run:
+                  name: Install dependencies
+                  command: npm install
+            - save_cache:
+                  key: v1-dependencies-{{ checksum "package.json" }}
+                  paths:
+                      - node_modules
+            - run:
+                  name: Test
+                  command: npm test
+            - run:
+                  name: Retrieve environment configuration
+                  command: aws s3api get-object --bucket $CONFIGURATIONS_BUCKET --key $CIRCLE_PROJECT_REPONAME/staging/.env .env.production
+            - run:
+                  name: Build project
+                  command: npm run build
+            - persist_to_workspace:
+                  root: ~/project
+                  paths:
+                      - build
+
+    build-prod:
+        working_directory: ~/project
+        docker:
+            - image: publipromueve/circleci-node:latest
+        steps:
+            - checkout
+            - run:
+                  name: Update npm
+                  command: 'sudo npm install -g npm@latest'
+            - restore_cache:
+                  keys:
+                      - v1-dependencies-{{ checksum "package.json" }}
+                      - v1-dependencies-
+            - run:
+                  name: Install dependencies
+                  command: npm install
+            - save_cache:
+                  key: v1-dependencies-{{ checksum "package.json" }}
+                  paths:
+                      - node_modules
+            - run:
+                  name: Test
+                  command: npm test
+            - run:
+                  name: Retrieve environment configuration
+                  command: aws s3api get-object --bucket $CONFIGURATIONS_BUCKET --key $CIRCLE_PROJECT_REPONAME/production/.env .env.production
+            - run:
+                  name: Build project
+                  command: npm run build
+            - persist_to_workspace:
+                  root: ~/project
+                  paths:
+                      - build
+
+    deploy-staging:
+        working_directory: ~/project
+        docker:
+            - image: publipromueve/circleci-node:latest
+        steps:
+            - attach_workspace:
+                  at: ~/project
+            - run:
+                  name: Retrieve deploy script
+                  command: aws s3api get-object --bucket $CONFIGURATIONS_BUCKET --key $CIRCLE_PROJECT_REPONAME/staging/deploy.sh deploy.sh
+            - run:
+                  name: Deploy project to staging
+                  command: sh ./deploy.sh
+
+    deploy-prod:
+        working_directory: ~/project
+        docker:
+            - image: publipromueve/circleci-node:latest
+        steps:
+            - attach_workspace:
+                  at: ~/project
+            - run:
+                  name: Retrieve deploy script
+                  command: aws s3api get-object --bucket $CONFIGURATIONS_BUCKET --key $CIRCLE_PROJECT_REPONAME/production/deploy.sh deploy.sh
+            - run:
+                  name: Deploy project to production
+                  command: sh ./deploy.sh
+workflows:
+    version: 2
+    build-and-deploy:
+        jobs:
+            - test:
+                  context: org-global
+
+            - build-staging:
+                  context: org-global
+                  requires:
+                      - test
+                  filters:
+                      branches:
+                          only: staging
+
+            - build-prod:
+                  context: org-global
+                  requires:
+                      - test
+                  filters:
+                      branches:
+                          only: master
+
+            - deploy-staging:
+                  context: org-global
+                  requires:
+                      - build-staging
+                  filters:
+                      branches:
+                          only: staging
+
+            - deploy-prod:
+                  context: org-global
+                  requires:
+                      - build-prod
+                  filters:
+                      branches:
+                          only: master

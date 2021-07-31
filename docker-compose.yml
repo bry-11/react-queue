@@ -1,0 +1,13 @@
+version: '3'
+services:
+    react-lara:
+        container_name: react-lara
+        restart: always
+        build: .
+        volumes:
+            - './:/usr/src/app'
+            - '/usr/src/app/node_modules'
+        ports:
+            - 8600:8000
+        stdin_open: true
+        command: npm start
